@@ -1,21 +1,12 @@
 package cliente;
 
 import java.net.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.io.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Random;
 import java.util.Scanner;
-import java.util.Set;
+import java.io.*;
 
 import mensajes.*;
 import server.Usuario;
 
-import org.json.*;
 
 public class Cliente {
 	private static Scanner sc;
@@ -26,22 +17,6 @@ public class Cliente {
 	private static Usuario usuario;
 //	private static String nombre_usuario;
 //	private static String[] peliculas = {};
-	
-	
-	private void descargar() {
-
-	}
-
-	private void compartir() {
-		/*
-		 * Al margen de la voluntad del usuario, el programa cliente puede actuar como
-		 * emisor de cualquier informacion de la que dispone compartida, como
-		 * propietario de una informacion que otro cliente solicite. Esta accion sera
-		 * llevada a cabo en un segundo plano permitiendo al usuario continuar con el
-		 * uso normal de la aplicacion.
-		 */
-
-	}
 	
 	private static String[] getPeliculasDisponibles() {
 		File carpeta = new File("pelis");
@@ -102,7 +77,8 @@ public class Cliente {
 
 	public static void main(String[] args) throws IOException {
 		// Crear un socket de conexi�n al servidor en el puerto 8888
-		Socket servidor = new Socket("localhost", 8888); // cambiar "localhost" por la ip del server para multiples
+		String ip = "192.168.1.128"; // "localhost" "192.168.1.128"
+		Socket servidor = new Socket(ip, 8888); // cambiar "localhost" por la ip del server para multiples
 															// ordenadores
 		System.out.println("Conexion establecida con " + servidor.getInetAddress());
 
@@ -118,7 +94,7 @@ public class Cliente {
             carpeta.mkdir();
         }
         String[] peliculas = getPeliculasDisponibles();
-		usuario = new Usuario(nombre_usuario, servidor.getInetAddress().toString(), peliculas);
+		usuario = new Usuario(nombre_usuario, "", peliculas);
 
 		oyente = new OyenteServidor(servidor, usuario);
 		oyente.start();

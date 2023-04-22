@@ -21,7 +21,11 @@ public class Usuario implements Serializable {
 		this.ip = ip;
 		this.peliculas = peliculas;
 	}
-
+	
+	public void setIp(String ip) {
+		this.ip = ip;
+	}
+	
 	public String getId() {
 		return id;
 	}

@@ -52,7 +52,6 @@ public class OyenteCliente extends Thread { // ClientManager
 
 					// Añade el usuario a la lista de usuarios que tienen la pelicula
 					for (String peliculaId : usuario.getIdPeliculas()) {
-						System.out.println(usuario.getId());
 						if (peliculas.containsKey(peliculaId)) {
 							peliculas.get(peliculaId).add(usuario);
 						} else {
@@ -64,7 +63,7 @@ public class OyenteCliente extends Thread { // ClientManager
 
 					System.out.println(usuario.getId() + " se acaba de conectar al servidor");
 
-					m = new MensajeBasico(M.CONFIRMAR_CONEX, "servidor", "cliente");
+					m = new MensajeBasico(M.CONFIRMAR_CONEX, "servidor", cliente.getInetAddress().getHostAddress());
 					fout.writeObject(m);
 					break;
 				case CONSULTAR_INFO:

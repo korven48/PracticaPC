@@ -3,7 +3,7 @@ package cliente;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -14,12 +14,11 @@ public class EmisorInfo extends Thread {
 	public EmisorInfo(int puerto, String nombrePelicula) throws IOException {
 		this.nombrePelicula = nombrePelicula;
 		socketEmisor = new ServerSocket(puerto); // no se que puerto poner
-//		System.out.println("Emisor esperando en " + socketEmisor.getLocalSocketAddress());
 	}
 	
 	public String getIp() {
-		InetAddress adress = socketEmisor.getInetAddress();
-		return adress.getHostAddress();
+		InetSocketAddress address = (InetSocketAddress) socketEmisor.getLocalSocketAddress();
+		return address.getAddress().getHostAddress();
 	}
 	
 	@Override

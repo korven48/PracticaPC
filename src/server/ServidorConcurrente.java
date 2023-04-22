@@ -28,7 +28,9 @@ public class ServidorConcurrente {
 		// Esperar a que lleguen conexiones de clientes
 		while (true) {
 			Socket cliente = servidor.accept();
-
+			
+//			System.out.println("Se ha conectado alguien desde " + cliente.getInetAddress().getHostAddress());
+			
 			new OyenteCliente(cliente, clientChannels, peliculas).start();
 		}
 	}

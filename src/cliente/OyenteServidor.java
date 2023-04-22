@@ -9,13 +9,13 @@ import mensajes.*;
 import server.Usuario;
 
 public class OyenteServidor extends Thread { // En realidad ServerManajer
-	private Socket servidor;
+	private Socket socket;
 	private ObjectOutputStream fout;
 	private ObjectInputStream fin;
 	private Usuario usuario;
 
-	public OyenteServidor(Socket servidor, Usuario usuario) {
-		this.servidor = servidor;
+	public OyenteServidor(Socket socket, Usuario usuario) {
+		this.socket = socket;
 		this.usuario = usuario;
 	}
 
@@ -32,15 +32,15 @@ public class OyenteServidor extends Thread { // En realidad ServerManajer
 		// Al descargar algo hay que actualizar la tabla del server
 
 		try {
-			fin = new ObjectInputStream(servidor.getInputStream());
-			fout = new ObjectOutputStream(servidor.getOutputStream());
+			fin = new ObjectInputStream(socket.getInputStream());
+			fout = new ObjectOutputStream(socket.getOutputStream());
 
 			while (true) {
 				Mensaje m = (Mensaje) fin.readObject();
 				switch (m.getTipo()) {
 				case CONFIRMAR_CONEX:
-					System.out.println("Conectado correctamente al servidor");
-
+					usuario.setIp(m.getDestino());
+					System.out.println("Conectado correctamente al socket");
 					break;
 				case CONFIRMACION_CONSULTAR_INFO:
 					MensajeInfo mInfo = (MensajeInfo) m;
@@ -55,8 +55,10 @@ public class OyenteServidor extends Thread { // En realidad ServerManajer
 					int puerto = 1234;
 					String nombrePelicula = mDatosPelicula.getContenido();
 					EmisorInfo emisor = new EmisorInfo(puerto, nombrePelicula);
-					String ip = emisor.getIp();
+//					String ip = emisor.getIp();
+					String ip = usuario.getIp();
 					emisor.start();
+					System.out.println("Ip emisor: " + ip);
 					
 					// el fichero lo manda este cliente a m.getDestino(). 
 					m = new MensajeEmision(M.PREPARADO_CS, usuario.getId(), m.getDestino(), nombrePelicula, ip, puerto); // puerto
@@ -71,7 +73,7 @@ public class OyenteServidor extends Thread { // En realidad ServerManajer
 					
 					break;
 				case CERRAR_CONEXION:
-					servidor.close();
+					socket.close();
 					break;
 				default:
 					break;
