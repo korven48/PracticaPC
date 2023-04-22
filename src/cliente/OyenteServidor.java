@@ -1,4 +1,4 @@
-package server;
+package cliente;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 import mensajes.*;
+import server.Usuario;
 
 public class OyenteServidor extends Thread { // En realidad ServerManajer
 	private Socket servidor;
@@ -50,12 +51,24 @@ public class OyenteServidor extends Thread { // En realidad ServerManajer
 					break;
 
 				case EMITIR_FICHERO:
-					MensajeTexto mDatosEmision = (MensajeTexto) m;
-
-					new EmisorInfo(1234).start();
-
-					m = new MensajeBasico(M.PREPARADO_CS, "", "");
+					MensajeTexto mDatosPelicula = (MensajeTexto) m;
+					int puerto = 1234;
+					String nombrePelicula = mDatosPelicula.getContenido();
+					EmisorInfo emisor = new EmisorInfo(puerto, nombrePelicula);
+					String ip = emisor.getIp();
+					emisor.start();
+					
+					// el fichero lo manda este cliente a m.getDestino(). 
+					m = new MensajeEmision(M.PREPARADO_CS, usuario.getId(), m.getDestino(), nombrePelicula, ip, puerto); // puerto
 					fout.writeObject(m);
+					break;
+				case PREPARADO_SC:
+					MensajeEmision mDatosEmision = (MensajeEmision) m;
+					nombrePelicula = mDatosEmision.getNombrePelicula();
+					ip = mDatosEmision.getIp();
+					puerto = mDatosEmision.getPuerto();
+					new ReceptorInfo(nombrePelicula, ip, puerto).start();
+					
 					break;
 				case CERRAR_CONEXION:
 					servidor.close();

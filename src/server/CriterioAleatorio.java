@@ -3,6 +3,7 @@ package server;
 import java.util.List;
 import java.util.Random;
 
+
 public class CriterioAleatorio extends Criterio {
 
 	@Override

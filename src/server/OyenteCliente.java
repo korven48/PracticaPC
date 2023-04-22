@@ -7,7 +7,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 
 import auxiliar.Pair;
 import mensajes.*;
@@ -16,6 +15,7 @@ public class OyenteCliente extends Thread { // ClientManager
 	ObjectInputStream fin;
 	ObjectOutputStream fout;
 	Socket cliente;
+	Usuario usuarioEscuchado;
 
 	boolean terminated = false;
 
@@ -47,10 +47,12 @@ public class OyenteCliente extends Thread { // ClientManager
 				case CONEXION:
 					MensajeConexion conex = (MensajeConexion) m;
 					Usuario usuario = conex.getUsuario();
+					this.usuarioEscuchado = usuario;
 					clientChannels.put(usuario.getId(), new Pair<ObjectOutputStream, ObjectInputStream>(fout, fin));
 
 					// Añade el usuario a la lista de usuarios que tienen la pelicula
 					for (String peliculaId : usuario.getIdPeliculas()) {
+						System.out.println(usuario.getId());
 						if (peliculas.containsKey(peliculaId)) {
 							peliculas.get(peliculaId).add(usuario);
 						} else {
@@ -71,6 +73,7 @@ public class OyenteCliente extends Thread { // ClientManager
 					fout.writeObject(m);
 					break;
 				case PEDIR_FICHERO:
+					System.out.println("Fichero pedido");
 					MensajeTexto mensajeFichero = (MensajeTexto) m;
 					String nombrePeli = mensajeFichero.getContenido();
 					List<Usuario> usuariosConPeli;
@@ -81,8 +84,11 @@ public class OyenteCliente extends Thread { // ClientManager
 						// Elegimos al usuario segun un criterio
 						Criterio criterio = new CriterioAleatorio();
 						Usuario usuarioACompartir = criterio.seleccionaUsuario(usuariosConPeli);
+						System.out.println("Usuario a compartir: " + usuarioACompartir.getId());
 
-						m = new MensajeTexto(M.EMITIR_FICHERO, "servidor", "cliente", nombrePeli);
+						// El que pide el fichero es el destino
+						m = new MensajeTexto(M.EMITIR_FICHERO, usuarioACompartir.getId(), usuarioEscuchado.getId(),
+								nombrePeli);
 
 						// Obtenemos el output stream de el cliente emisor
 						ObjectOutputStream emisourOut = clientChannels.get(usuarioACompartir.getId()).getFirst();
@@ -91,12 +97,22 @@ public class OyenteCliente extends Thread { // ClientManager
 						System.out.println("Pelicula no disponible");
 					}
 					break;
+				case PREPARADO_CS:
+					MensajeEmision mensajeEmision = (MensajeEmision) m;
+					// Este mensaje llega del emisor y va al receptor
+					m = new MensajeEmision(M.PREPARADO_SC, m.getOrigen(), m.getDestino(),
+							mensajeEmision.getNombrePelicula(), mensajeEmision.getIp(), mensajeEmision.getPuerto());
+					
+					// Obtenemos el output stream de el cliente receptor
+					ObjectOutputStream emisourOut = clientChannels.get(m.getDestino()).getFirst();
+					emisourOut.writeObject(m);
+					break;
 				case CERRAR_CONEXION:
 					conex = (MensajeConexion) m;
 					usuario = conex.getUsuario();
 					clientChannels.remove(usuario.getId());
 					for (String peliculaId : usuario.getIdPeliculas()) {
-						if (peliculas.containsKey(peliculaId)) { // no debería de hacer falta en principio
+						if (peliculas.containsKey(peliculaId)) {
 							List<Usuario> usuarios = peliculas.get(peliculaId);
 							usuarios.remove(usuario);
 							if (usuarios.isEmpty()) {

@@ -1,4 +1,4 @@
-package server;
+package cliente;
 
 import java.net.*;
 import java.nio.file.Files;
@@ -13,6 +13,7 @@ import java.util.Scanner;
 import java.util.Set;
 
 import mensajes.*;
+import server.Usuario;
 
 import org.json.*;
 
@@ -22,8 +23,11 @@ public class Cliente {
 	private static ObjectOutputStream fout;
 	private static ObjectInputStream fin;
 
-	private static String nombre_usuario;
-
+	private static Usuario usuario;
+//	private static String nombre_usuario;
+//	private static String[] peliculas = {};
+	
+	
 	private void descargar() {
 
 	}
@@ -38,30 +42,46 @@ public class Cliente {
 		 */
 
 	}
-
-	private static Set<Pelicula> seleccionaPeliculas() throws IOException {
-		// Escoje 3 peliculas aleatorias de peliculas.json
-		String jsonString = new String(Files.readAllBytes(Paths.get("info/peliculas.json")));
-		JSONArray jsonArray = new JSONArray(jsonString);
-		Random rand = new Random();
-		List<Integer> indices = new ArrayList<>();
-		while (indices.size() < 3) {
-			int index = rand.nextInt(jsonArray.length());
-			if (!indices.contains(index)) {
-				indices.add(index);
-			}
-		}
-
-		Set<Pelicula> peliculas = new LinkedHashSet<Pelicula>();
-		for (int index : indices) {
-			JSONObject objeto = jsonArray.getJSONObject(index);
-			String titulo = objeto.getString("titulo");
-			String descripcion = objeto.getString("descripcion");
-			peliculas.add(new Pelicula(titulo, descripcion));
-		}
-
-		return peliculas;
+	
+	private static String[] getPeliculasDisponibles() {
+		File carpeta = new File("pelis");
+		String[] peliculas = new String[0];
+        if (carpeta.exists() && carpeta.isDirectory()) {
+            peliculas = carpeta.list();
+        } else {
+        	carpeta.mkdir();
+        }
+        return peliculas;
 	}
+	
+	private static void actualizarPelisUsuario() {
+        usuario.setPeliculas(getPeliculasDisponibles());
+	}
+
+//	private static Set<Pelicula> seleccionaPeliculas() throws IOException {
+//		// Escoje 3 peliculas aleatorias de peliculas.json
+//		String jsonString = new String(Files.readAllBytes(Paths.get("info/peliculas.json")));
+//		JSONArray jsonArray = new JSONArray(jsonString);
+//		Random rand = new Random();
+//		List<Integer> indices = new ArrayList<>();
+//		while (indices.size() < 3) {
+//			int index = rand.nextInt(jsonArray.length());
+//			if (!indices.contains(index)) {
+//				indices.add(index);
+//			}
+//		}
+//
+//		Set<Pelicula> peliculas = new LinkedHashSet<Pelicula>();
+//		for (int index : indices) {
+//			JSONObject objeto = jsonArray.getJSONObject(index);
+//			String titulo = objeto.getString("titulo");
+//			String descripcion = objeto.getString("descripcion");
+//			peliculas.add(new Pelicula(titulo, descripcion));
+//		}
+//
+//		return peliculas;
+//	}
+	
 
 	private static int interfaz() {
 		int opcion = 0;
@@ -89,22 +109,16 @@ public class Cliente {
 		// Al iniciar la aplicacion se pregunta al usuario por su nombre de usuario.
 		sc = new Scanner(System.in);
 		System.out.print("Introduzca su nombre: ");
-		nombre_usuario = sc.nextLine();
+		String nombre_usuario = sc.nextLine();
 
 		// Crea lista de peliculas del usuario
 //		Set<Pelicula> peliculasCliente = seleccionaPeliculas();
 		File carpeta = new File("pelis");
-		String[] peliculas;
-        if (carpeta.isDirectory()) {
-            peliculas = carpeta.list();
-            if (peliculas != null) {
-                for (String file : peliculas) {
-                    System.out.println(file);
-                }
-            }
+        if (!carpeta.exists() || !carpeta.isDirectory()) {
+            carpeta.mkdir();
         }
-
-		Usuario usuario = new Usuario(nombre_usuario, servidor.getInetAddress().toString(), peliculas);
+        String[] peliculas = getPeliculasDisponibles();
+		usuario = new Usuario(nombre_usuario, servidor.getInetAddress().toString(), peliculas);
 
 		oyente = new OyenteServidor(servidor, usuario);
 		oyente.start();
@@ -119,13 +133,14 @@ public class Cliente {
 		Mensaje m = new MensajeConexion(M.CONEXION, "cliente", "servidor", usuario);
 		fout.writeObject(m);
 		try {
-			Thread.sleep(200); // no deberia ser asi
+			Thread.sleep(200); // no deberia ser asi (?)
 		} catch (InterruptedException e1) {
 			e1.printStackTrace();
 		}
 		try {
 			while (true) {
 				int opcion = interfaz();
+				actualizarPelisUsuario();
 				Mensaje mensaje;
 				switch (opcion) {
 				case 1:
@@ -142,9 +157,21 @@ public class Cliente {
 					System.out.print("Escribe el nombre de la pelicula que quieres descargar: ");
 					String peli;
 					peli = sc.nextLine();
-
-					m = new MensajeTexto(M.PEDIR_FICHERO, "cliente", "servidor", peli);
-					fout.writeObject(peli);
+					boolean encontrado = false;
+			        peliculas = usuario.getIdPeliculas();
+			        for (int i = 0; i < peliculas.length; i++) {
+			            if (peliculas[i].equals(peli)) {
+			                encontrado = true;
+			                break;
+			            }
+			        }
+			        
+			        if (encontrado) {
+			        	System.out.println("Ya tienes ese archivo");
+			        } else {
+			            m = new MensajeTexto(M.PEDIR_FICHERO, "cliente", "servidor", peli);
+			            fout.writeObject(m);
+			        }
 					break;
 				case 3:
 					System.out.println("Tus peliculas son: ");
