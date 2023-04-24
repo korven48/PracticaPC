@@ -2,6 +2,10 @@ package cliente;
 
 import java.net.*;
 import java.util.Scanner;
+
+import concurrente.locks.Lock;
+import concurrente.locks.LockBackery;
+
 import java.io.*;
 
 import mensajes.*;
@@ -15,8 +19,8 @@ public class Cliente {
 	private static ObjectInputStream fin;
 
 	private static Usuario usuario;
-//	private static String nombre_usuario;
-//	private static String[] peliculas = {};
+	
+	private static Lock lockConsola;
 	
 	private static String[] getPeliculasDisponibles() {
 		File carpeta = new File("pelis");
@@ -29,36 +33,18 @@ public class Cliente {
         return peliculas;
 	}
 	
-	private static void actualizarPelisUsuario() {
-        usuario.setPeliculas(getPeliculasDisponibles());
+	public static synchronized void actualizarPelisUsuario() {
+		String[] peliculas = getPeliculasDisponibles();
+        usuario.setPeliculas(peliculas);
 	}
-
-//	private static Set<Pelicula> seleccionaPeliculas() throws IOException {
-//		// Escoje 3 peliculas aleatorias de peliculas.json
-//		String jsonString = new String(Files.readAllBytes(Paths.get("info/peliculas.json")));
-//		JSONArray jsonArray = new JSONArray(jsonString);
-//		Random rand = new Random();
-//		List<Integer> indices = new ArrayList<>();
-//		while (indices.size() < 3) {
-//			int index = rand.nextInt(jsonArray.length());
-//			if (!indices.contains(index)) {
-//				indices.add(index);
-//			}
-//		}
-//
-//		Set<Pelicula> peliculas = new LinkedHashSet<Pelicula>();
-//		for (int index : indices) {
-//			JSONObject objeto = jsonArray.getJSONObject(index);
-//			String titulo = objeto.getString("titulo");
-//			String descripcion = objeto.getString("descripcion");
-//			peliculas.add(new Pelicula(titulo, descripcion));
-//		}
-//
-//		return peliculas;
-//	}
 	
-
+	public static void actualizarPelisEnServidor() throws IOException {
+        Mensaje m = new MensajeConexion(M.ACTUALIZAR_INFO, null, null, usuario);
+        fout.writeObject(m);
+	}
+	
 	private static int interfaz() {
+		lockConsola.takeLock(0);
 		int opcion = 0;
 		System.out.println("  ------------ Menu ------------");
 		System.out.println("1 - Consultar peliculas disponibles");
@@ -71,24 +57,28 @@ public class Cliente {
 		if (sc.hasNextLine()) {
 			sc.nextLine(); // limpiar el búfer
 		}
+		lockConsola.releaseLock(0);
 
 		return opcion;
 	}
 
 	public static void main(String[] args) throws IOException {
 		// Crear un socket de conexi�n al servidor en el puerto 8888
-		String ip = "192.168.1.128"; // "localhost" "192.168.1.128"
-		Socket servidor = new Socket(ip, 8888); // cambiar "localhost" por la ip del server para multiples
-															// ordenadores
+		String ip = "192.168.1.128"; // "localhost" "192.168.1.128" comprobar en ipconfig (adaptador lan inalambrica)
+		Socket servidor = new Socket(ip, 1024);
 		System.out.println("Conexion establecida con " + servidor.getInetAddress());
-
+		
+		// Creamos los Locks
+		lockConsola = new LockBackery(2); // solo cliente y oyenteServidor acceden a la consola
+		
 		// Al iniciar la aplicacion se pregunta al usuario por su nombre de usuario.
 		sc = new Scanner(System.in);
+		lockConsola.takeLock(0);
 		System.out.print("Introduzca su nombre: ");
 		String nombre_usuario = sc.nextLine();
-
+		lockConsola.releaseLock(0);
+		
 		// Crea lista de peliculas del usuario
-//		Set<Pelicula> peliculasCliente = seleccionaPeliculas();
 		File carpeta = new File("pelis");
         if (!carpeta.exists() || !carpeta.isDirectory()) {
             carpeta.mkdir();
@@ -96,7 +86,7 @@ public class Cliente {
         String[] peliculas = getPeliculasDisponibles();
 		usuario = new Usuario(nombre_usuario, "", peliculas);
 
-		oyente = new OyenteServidor(servidor, usuario);
+		oyente = new OyenteServidor(servidor, usuario, lockConsola);
 		oyente.start();
 		try {
 			Thread.sleep(200); // no deberia ser asi
@@ -108,11 +98,11 @@ public class Cliente {
 
 		Mensaje m = new MensajeConexion(M.CONEXION, "cliente", "servidor", usuario);
 		fout.writeObject(m);
-		try {
-			Thread.sleep(200); // no deberia ser asi (?)
-		} catch (InterruptedException e1) {
-			e1.printStackTrace();
-		}
+//		try {
+//			Thread.sleep(200); // no deberia ser asi (?)
+//		} catch (InterruptedException e1) {
+//			e1.printStackTrace();
+//		}
 		try {
 			while (true) {
 				int opcion = interfaz();
@@ -122,17 +112,19 @@ public class Cliente {
 				case 1:
 					mensaje = new MensajeBasico(M.CONSULTAR_INFO, nombre_usuario, nombre_usuario);
 					fout.writeObject(mensaje);
-					try {
-						Thread.sleep(200); // no deberia ser asi
-					} catch (InterruptedException e1) {
-						e1.printStackTrace();
-					}
+//					try {
+//						Thread.sleep(200); 
+//					} catch (InterruptedException e1) {
+//						e1.printStackTrace();
+//					}
 
 					break;
 				case 2:
+					lockConsola.takeLock(0);
 					System.out.print("Escribe el nombre de la pelicula que quieres descargar: ");
 					String peli;
 					peli = sc.nextLine();
+
 					boolean encontrado = false;
 			        peliculas = usuario.getIdPeliculas();
 			        for (int i = 0; i < peliculas.length; i++) {
@@ -148,12 +140,15 @@ public class Cliente {
 			            m = new MensajeTexto(M.PEDIR_FICHERO, "cliente", "servidor", peli);
 			            fout.writeObject(m);
 			        }
+			        lockConsola.releaseLock(0);
 					break;
 				case 3:
+					lockConsola.takeLock(0);
 					System.out.println("Tus peliculas son: ");
 					for (String peliId : usuario.getIdPeliculas()) {
 						System.out.println(peliId);
 					}
+					lockConsola.releaseLock(0);
 					break;
 				case 4:
 					mensaje = new MensajeConexion(M.CERRAR_CONEXION, nombre_usuario, nombre_usuario, usuario);

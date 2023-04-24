@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.Semaphore;
 
 import auxiliar.Pair;
 import mensajes.*;
@@ -18,6 +19,9 @@ public class OyenteCliente extends Thread { // ClientManager
 	Usuario usuarioEscuchado;
 
 	boolean terminated = false;
+	
+	private static int nr = 0, nw = 0, dr = 0, dw = 0;
+	private static Semaphore entry = new Semaphore(1), readers = new Semaphore(1), writers = new Semaphore(1);
 
 	// Info del server
 	HashMap<String, Pair<ObjectOutputStream, ObjectInputStream>> clientChannels;
@@ -30,13 +34,96 @@ public class OyenteCliente extends Thread { // ClientManager
 		this.clientChannels = clientChannels;
 	}
 
+	private void eliminarPeliculasUsuario(Usuario usuario) throws InterruptedException {
+		entry.acquire();
+		if (nr > 0 || nw > 0) {
+			dw++;
+			entry.release();
+			writers.acquire();
+		}
+		nw++;
+		entry.release();
+		for (String peliculaId : peliculas.keySet()) {
+			List<Usuario> usuarios = peliculas.get(peliculaId);
+			usuarios.remove(usuario);
+			if (usuarios.isEmpty()) {
+				peliculas.remove(peliculaId);
+			}
+		}
+		entry.acquire();
+		nw--;
+		if (dw > 0) { // Si queda algun escritor esperando
+			dw--;
+			writers.release(); // despierto a uno
+		} else if (dr > 0) { // si no, a algun reader
+			dr--;
+			readers.release();
+		} else { // si no pues suelto el testigo
+			entry.release();
+		}
+		
+	}
+	
+	private void añadirPeliculasUsuario(Usuario usuario) throws InterruptedException {
+		entry.acquire();
+		if (nr > 0 || nw > 0) {
+			dw++;
+			entry.release();
+			writers.acquire();
+		}
+		nw++;
+		entry.release();
+		for (String peliculaId : usuario.getIdPeliculas()) { // escribir
+			if (peliculas.containsKey(peliculaId)) {
+				peliculas.get(peliculaId).add(usuario);
+			} else {
+				ArrayList<Usuario> lstUs = new ArrayList<Usuario>();
+				lstUs.add(usuario);
+				peliculas.put(peliculaId, lstUs);
+			}
+		}
+		entry.acquire();
+		nw--;
+		if (dw > 0) { // Si queda algun escritor esperando
+			dw--;
+			writers.release(); // despierto a uno
+		} else if (dr > 0) { // si no, a algun reader
+			dr--;
+			readers.release();
+		} else { // si no pues suelto el testigo
+			entry.release();
+		}
+		
+	}
+	
+	private List<Usuario> getUsuarios(String nombrePeli) throws InterruptedException {
+		entry.acquire();
+		if (nw > 0) {
+			dr++;
+			entry.release();
+			readers.acquire();
+		}
+		nr++;
+		if (dr > 0) { // Los lectores pueden leer a la vez
+			dr--;
+			readers.release();
+		} else {
+			entry.release();
+		}
+		List<Usuario> usuarios = peliculas.get(nombrePeli); // leer
+		entry.acquire();
+		nr--;
+		if (nr == 0 && dw > 0) { // Si queda algun escritor esperando
+			dw--;
+			writers.release(); // despierto a uno
+		} else { 	
+			entry.release();
+		}
+		return usuarios;
+	}
+	
 	@Override
 	public void run() {
-		/*
-		 * hacer lecturas del flujo de entrada correspondiente, realizar las acciones
-		 * oportunas, y devolver los resultados en forma de mensajes que seran enviados
-		 * al usuario o usuarios involucrados
-		 */
 		try (
 				// Crear los flujos de entrada y salida de objetos
 				ObjectOutputStream fout = new ObjectOutputStream(cliente.getOutputStream());
@@ -51,20 +138,19 @@ public class OyenteCliente extends Thread { // ClientManager
 					clientChannels.put(usuario.getId(), new Pair<ObjectOutputStream, ObjectInputStream>(fout, fin));
 
 					// Añade el usuario a la lista de usuarios que tienen la pelicula
-					for (String peliculaId : usuario.getIdPeliculas()) {
-						if (peliculas.containsKey(peliculaId)) {
-							peliculas.get(peliculaId).add(usuario);
-						} else {
-							ArrayList<Usuario> lstUs = new ArrayList<Usuario>();
-							lstUs.add(usuario);
-							peliculas.put(peliculaId, lstUs);
-						}
-					}
+					añadirPeliculasUsuario(usuario);
 
 					System.out.println(usuario.getId() + " se acaba de conectar al servidor");
 
 					m = new MensajeBasico(M.CONFIRMAR_CONEX, "servidor", cliente.getInetAddress().getHostAddress());
 					fout.writeObject(m);
+					break;
+				case ACTUALIZAR_INFO:
+					conex = (MensajeConexion) m;
+					usuario = conex.getUsuario();
+					// Esto es terriblemente ineficiente pero solo ocurre al descagar una peli, asi que asi queda
+					eliminarPeliculasUsuario(usuario);
+					añadirPeliculasUsuario(usuario);
 					break;
 				case CONSULTAR_INFO:
 					m = new MensajeInfo(M.CONFIRMACION_CONSULTAR_INFO, "servidor", "cliente",
@@ -75,11 +161,17 @@ public class OyenteCliente extends Thread { // ClientManager
 					System.out.println("Fichero pedido");
 					MensajeTexto mensajeFichero = (MensajeTexto) m;
 					String nombrePeli = mensajeFichero.getContenido();
-					List<Usuario> usuariosConPeli;
+
 					if (peliculas.containsKey(nombrePeli)) {
 						// Lista de usuarios que tienen la pelicula pedida
-						usuariosConPeli = peliculas.get(nombrePeli);
+						
+						
+						
+						List<Usuario> usuariosConPeli = getUsuarios(nombrePeli);
 
+
+						
+						
 						// Elegimos al usuario segun un criterio
 						Criterio criterio = new CriterioAleatorio();
 						Usuario usuarioACompartir = criterio.seleccionaUsuario(usuariosConPeli);
@@ -110,15 +202,7 @@ public class OyenteCliente extends Thread { // ClientManager
 					conex = (MensajeConexion) m;
 					usuario = conex.getUsuario();
 					clientChannels.remove(usuario.getId());
-					for (String peliculaId : usuario.getIdPeliculas()) {
-						if (peliculas.containsKey(peliculaId)) {
-							List<Usuario> usuarios = peliculas.get(peliculaId);
-							usuarios.remove(usuario);
-							if (usuarios.isEmpty()) {
-								peliculas.remove(peliculaId);
-							}
-						}
-					}
+					eliminarPeliculasUsuario(usuario);
 					m = new MensajeBasico(M.CONFIRMAR_CIERRE, "servidor", "cliente");
 					fout.writeObject(m);
 					System.out.println(usuario.getId() + " se ha desconectado");
@@ -132,6 +216,8 @@ public class OyenteCliente extends Thread { // ClientManager
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}

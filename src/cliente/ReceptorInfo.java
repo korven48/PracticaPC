@@ -28,12 +28,13 @@ public class ReceptorInfo extends Thread {
 		FileOutputStream fileOutputStream = new FileOutputStream(rutaDelArchivo);
 		byte[] buffer = new byte[1024];
 		int bytesRead = 0;
-		System.out.println("Ha comenzado la descarga de " + nombrePelicula);
+//		System.out.println("Ha comenzado la descarga de " + nombrePelicula);
 		while ((bytesRead = inputStream.read(buffer)) != -1) {
 			fileOutputStream.write(buffer, 0, bytesRead);
 		}
 		
-		System.out.println("Pelicula descargada con exito");
+		Cliente.actualizarPelisUsuario();
+		Cliente.actualizarPelisEnServidor();
 		inputStream.close();
 		fileOutputStream.close();
 		socketEmisor.close();
