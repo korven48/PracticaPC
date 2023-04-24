@@ -95,9 +95,11 @@ public class Cliente {
 		}
 		fout = oyente.getFout();
 		fin = oyente.getFin();
-
+		
+		lockConsola.takeLock(1);
 		Mensaje m = new MensajeConexion(M.CONEXION, "cliente", "servidor", usuario);
 		fout.writeObject(m);
+		
 //		try {
 //			Thread.sleep(200); // no deberia ser asi (?)
 //		} catch (InterruptedException e1) {
@@ -112,12 +114,7 @@ public class Cliente {
 				case 1:
 					mensaje = new MensajeBasico(M.CONSULTAR_INFO, nombre_usuario, nombre_usuario);
 					fout.writeObject(mensaje);
-//					try {
-//						Thread.sleep(200); 
-//					} catch (InterruptedException e1) {
-//						e1.printStackTrace();
-//					}
-
+					lockConsola.takeLock(1);
 					break;
 				case 2:
 					lockConsola.takeLock(0);
@@ -141,6 +138,7 @@ public class Cliente {
 			            fout.writeObject(m);
 			        }
 			        lockConsola.releaseLock(0);
+			        lockConsola.takeLock(1);
 					break;
 				case 3:
 					lockConsola.takeLock(0);

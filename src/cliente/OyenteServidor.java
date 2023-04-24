@@ -51,13 +51,12 @@ public class OyenteServidor extends Thread { // En realidad ServerManager
 				switch (m.getTipo()) {
 				case CONFIRMAR_CONEX:
 					usuario.setIp(m.getDestino());
-					lockConsola.takeLock(1);
 					System.out.println("Conectado correctamente al socket");
 					lockConsola.releaseLock(1);
 					break;
 				case CONFIRMACION_CONSULTAR_INFO:
 					MensajeInfo mInfo = (MensajeInfo) m;
-					lockConsola.takeLock(1);
+//					lockConsola.takeLock(1);
 					System.out.println("Las peliculas disponibles son: ");
 					for (String peliId : mInfo.getPeliculasDisponibles()) {
 						System.out.println(peliId);
@@ -73,9 +72,7 @@ public class OyenteServidor extends Thread { // En realidad ServerManager
 					String ip = usuario.getIp();
 					emisor.start();
 					
-					lockConsola.takeLock(1);
-					System.out.println("Ip emisor: " + ip);
-					lockConsola.releaseLock(1);
+//					System.out.println("Ip emisor: " + ip);
 					
 					// el fichero lo manda este cliente a m.getDestino(). 
 					m = new MensajeEmision(M.PREPARADO_CS, usuario.getId(), m.getDestino(), nombrePelicula, ip, puerto); // puerto
@@ -88,6 +85,15 @@ public class OyenteServidor extends Thread { // En realidad ServerManager
 					puerto = mDatosEmision.getPuerto();
 					new ReceptorInfo(nombrePelicula, ip, puerto).start();
 					
+					break;
+				case CONFIRMACION_PEDIR_FICHERO:
+					MensajeBool menBool = (MensajeBool) m;
+					if (menBool.getBool()) {
+						System.out.println("Comenzando descarga");
+					} else {
+						System.out.println("Esa pelicula no esta disponible");
+					}
+					lockConsola.releaseLock(1);
 					break;
 				case CERRAR_CONEXION:
 					socket.close();
