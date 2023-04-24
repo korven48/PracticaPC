@@ -99,12 +99,7 @@ public class Cliente {
 		lockConsola.takeLock(1);
 		Mensaje m = new MensajeConexion(M.CONEXION, "cliente", "servidor", usuario);
 		fout.writeObject(m);
-		
-//		try {
-//			Thread.sleep(200); // no deberia ser asi (?)
-//		} catch (InterruptedException e1) {
-//			e1.printStackTrace();
-//		}
+
 		try {
 			while (true) {
 				int opcion = interfaz();

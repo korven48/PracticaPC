@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
@@ -43,12 +44,14 @@ public class OyenteCliente extends Thread { // ClientManager
 		}
 		nw++;
 		entry.release();
-		for (String peliculaId : peliculas.keySet()) {
-			List<Usuario> usuarios = peliculas.get(peliculaId);
-			usuarios.remove(usuario);
-			if (usuarios.isEmpty()) {
-				peliculas.remove(peliculaId);
-			}
+		Iterator<String> peliculaIterator = peliculas.keySet().iterator();
+		while (peliculaIterator.hasNext()) {
+		    String peliculaId = peliculaIterator.next();
+		    List<Usuario> usuarios = peliculas.get(peliculaId);
+		    usuarios.remove(usuario);
+		    if (usuarios.isEmpty()) {
+		        peliculaIterator.remove();
+		    }
 		}
 		entry.acquire();
 		nw--;
@@ -177,8 +180,7 @@ public class OyenteCliente extends Thread { // ClientManager
 					// Elegimos al usuario segun un criterio
 					Criterio criterio = new CriterioAleatorio();
 					Usuario usuarioACompartir = criterio.seleccionaUsuario(usuariosConPeli);
-					System.out.println("Usuario a compartir: " + usuarioACompartir.getId());
-					
+					System.out.println(usuarioACompartir.getId() + " le manda " + nombrePeli + " a " + usuarioEscuchado.getId());
 					
 					// El que pide el fichero es el destino
 					m = new MensajeTexto(M.EMITIR_FICHERO, usuarioACompartir.getId(), usuarioEscuchado.getId(),
