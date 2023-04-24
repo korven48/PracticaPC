@@ -33,6 +33,7 @@ public class OyenteCliente extends Thread { // ClientManager
 	public OyenteCliente(Socket cliente, HashMap<String, Pair<ObjectOutputStream, ObjectInputStream>> clientChannels,
 			HashMap<String, List<Usuario>> peliculas) {
 		this.cliente = cliente;
+		this.clientChannels = clientChannels;
 		this.peliculas = peliculas;
 	}
 
