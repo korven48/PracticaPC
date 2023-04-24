@@ -9,6 +9,7 @@ import java.util.concurrent.*;
 import auxiliar.Pair;
 import concurrente.locks.Lock;
 import concurrente.locks.LockBackery;
+import concurrente.monitores.MonitorNormal;
 
 public class ServidorConcurrente {
 	private static Lock lockConsola;
@@ -23,7 +24,6 @@ public class ServidorConcurrente {
 		// Semaforos y monitores etc
 		Lock lockConsola = new LockBackery(2); // no hace falta de momento porque el servidor no printea nada depues de
 												// crear oyenteCliente
-
 		// Crear un socket de escucha en el puerto 8888
 		@SuppressWarnings("resource")
 		ServerSocket servidor = new ServerSocket(1024);

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.concurrent.Semaphore;
 
 import auxiliar.Pair;
+import concurrente.monitores.MonitorNormal;
 import mensajes.*;
 
 public class OyenteCliente extends Thread { // ClientManager
@@ -21,6 +22,7 @@ public class OyenteCliente extends Thread { // ClientManager
 
 	boolean terminated = false;
 	
+	private static MonitorNormal monitorClientChannels = new MonitorNormal();
 	private static int nr = 0, nw = 0, dr = 0, dw = 0;
 	private static Semaphore entry = new Semaphore(1), readers = new Semaphore(1), writers = new Semaphore(1);
 
@@ -32,7 +34,6 @@ public class OyenteCliente extends Thread { // ClientManager
 			HashMap<String, List<Usuario>> peliculas) {
 		this.cliente = cliente;
 		this.peliculas = peliculas;
-		this.clientChannels = clientChannels;
 	}
 
 	private void eliminarPeliculasUsuario(Usuario usuario) throws InterruptedException {
@@ -141,7 +142,10 @@ public class OyenteCliente extends Thread { // ClientManager
 					MensajeConexion conex = (MensajeConexion) m;
 					Usuario usuario = conex.getUsuario();
 					this.usuarioEscuchado = usuario;
+					
+					monitorClientChannels.requestWrite();
 					clientChannels.put(usuario.getId(), new Pair<ObjectOutputStream, ObjectInputStream>(fout, fin));
+					monitorClientChannels.releaseWrite();
 
 					// Añade el usuario a la lista de usuarios que tienen la pelicula
 					addPeliculasUsuario(usuario);
@@ -187,7 +191,10 @@ public class OyenteCliente extends Thread { // ClientManager
 							nombrePeli);
 
 					// Obtenemos el output stream de el cliente emisor
+					monitorClientChannels.requestRead();
 					ObjectOutputStream emisourOut = clientChannels.get(usuarioACompartir.getId()).getFirst();
+					monitorClientChannels.releaseRead();
+					
 					emisourOut.writeObject(m);
 					break;
 				case PREPARADO_CS:
@@ -197,13 +204,20 @@ public class OyenteCliente extends Thread { // ClientManager
 							mensajeEmision.getNombrePelicula(), mensajeEmision.getIp(), mensajeEmision.getPuerto());
 					
 					// Obtenemos el output stream de el cliente receptor
+					monitorClientChannels.requestRead();
 					emisourOut = clientChannels.get(m.getDestino()).getFirst();
+					monitorClientChannels.requestRead();
+					
 					emisourOut.writeObject(m);
 					break;
 				case CERRAR_CONEXION:
 					conex = (MensajeConexion) m;
 					usuario = conex.getUsuario();
+					
+					monitorClientChannels.releaseWrite();
 					clientChannels.remove(usuario.getId());
+					monitorClientChannels.releaseWrite();
+					
 					eliminarPeliculasUsuario(usuario);
 					m = new MensajeBasico(M.CONFIRMAR_CIERRE, "servidor", "cliente");
 					fout.writeObject(m);
