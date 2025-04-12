@@ -4,6 +4,7 @@ import java.net.*;
 import java.io.*;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 
 import auxiliar.Pair;
@@ -17,8 +18,8 @@ public class ServidorConcurrente {
 	public static void main(String[] args) throws IOException {
 
 		// Info del server
-		HashMap<String, Pair<ObjectOutputStream, ObjectInputStream>> clientChannels = new HashMap<String, Pair<ObjectOutputStream, ObjectInputStream>>();
-		HashMap<String, List<Usuario>> peliculas = new HashMap<String, List<Usuario>>(); // idPelicula -> lista de
+		Map<String, Pair<ObjectOutputStream, ObjectInputStream>> clientChannels = new ConcurrentHashMap<String, Pair<ObjectOutputStream, ObjectInputStream>>();
+		Map<String, List<Usuario>> peliculas = new HashMap<String, List<Usuario>>(); // idPelicula -> lista de
 																							// usuarios que la tienen
 
 		// Semaforos y monitores etc

@@ -1,6 +1,8 @@
 package concurrente.monitores;
 
-public class MonitorNormal {
+import concurrente.ReadWriteSynchronizer;
+
+public class MonitorNormal implements ReadWriteSynchronizer{
     private int numReaders;  // contador de procesos lectores
     private int numWriters;  // contador de procesos escritores
 

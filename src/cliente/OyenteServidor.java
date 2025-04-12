@@ -23,7 +23,7 @@ public class OyenteServidor extends Thread { // En realidad ServerManager
 		this.socket = socket;
 		this.usuario = usuario;
 		this.lockConsola = lockConsola;
-		this.puertoEmision = 1025;
+		puertoEmision = 1025;
 	}
 
 	public ObjectOutputStream getFout() {
